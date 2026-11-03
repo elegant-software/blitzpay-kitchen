@@ -41,7 +41,9 @@ Trigger events by hand: `curl -X POST localhost:8787/mock/created` (also `change
 
 ## Config
 
-Read in this order, later wins: bundled `config.json` → `<userData>/config.json` → environment.
+Read in this order, later wins: bundled `config.json` → `<userData>/config.json` → environment. Environment variables can also go in a `.env` file next to `package.json` (gitignored); real environment variables win over it.
+
+If the screen cannot start (server unreachable, login failing) it shows the reason and retries every 10 s. The log is in `<userData>/kitchen.log`.
 
 | key | env | default |
 |---|---|---|

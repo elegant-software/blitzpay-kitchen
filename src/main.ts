@@ -3,8 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { errorPage } from './renderer/error-page.js';
 
 const root = path.join(import.meta.dirname, '..');
+// Optional .env next to package.json (KEY=value lines). Real environment variables still win.
+try { process.loadEnvFile(path.join(root, '.env')); } catch {}
 const kiosk = process.env.KIOSK !== '0';
 
 // Bundled config.json < <userData>/config.json < environment variables.
@@ -22,6 +25,7 @@ function loadConfig() {
   for (const [key, name] of Object.entries(env)) if (process.env[name]) c[key] = process.env[name];
   c.overdueMinutes = Number(c.overdueMinutes) || 15;
   c.mockAuth = process.env.MOCK_AUTH === '1' || c.mockAuth === true;
+  log(`Kitchen Screen: API ${c.apiBaseUrl}, Keycloak ${c.keycloakUrl}, branch ${c.branchId}`);
   return c;
 }
 
@@ -34,6 +38,13 @@ function enableAutostart() {
   const exec = process.env.APPIMAGE ?? process.execPath;
   fs.writeFileSync(path.join(dir, 'blitzpay-kitchen.desktop'),
     `[Desktop Entry]\nType=Application\nName=BlitzPay Kitchen\nExec="${exec}"\nX-GNOME-Autostart-enabled=true\n`);
+}
+
+// Persistent log for kiosks in the field: <userData>/kitchen.log (main process + renderer console warnings/errors).
+// ponytail: grows unbounded, rotate if a device ever runs for months without reinstall
+function log(line: string) {
+  console.log(line);
+  try { fs.appendFileSync(path.join(app.getPath('userData'), 'kitchen.log'), `${new Date().toISOString()} ${line}\n`); } catch {}
 }
 
 const tokenFile = () => path.join(app.getPath('userData'), 'token.bin');
@@ -58,6 +69,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let win: BrowserWindow | null = null;
+const RETRY_S = 10;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -69,7 +81,9 @@ if (!app.requestSingleInstanceLock()) {
       if (!file.startsWith(root + path.sep)) return new Response(null, { status: 404 });
       return net.fetch(pathToFileURL(file).toString());
     });
-    Menu.setApplicationMenu(null);
+    loadConfig(); // logs which servers this run uses
+    // Edit menu only: macOS needs it for Cmd+C/V (e.g. pasting the Kitchen Login). No Quit item, so the kiosk stays up.
+    Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'editMenu' }]));
     powerSaveBlocker.start('prevent-display-sleep');
     enableAutostart();
     win = new BrowserWindow({
@@ -85,7 +99,22 @@ if (!app.requestSingleInstanceLock()) {
       },
     });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    win.loadURL('app://kitchen/renderer/index.html');
+    const start = () => win!.loadURL('app://kitchen/renderer/index.html');
+    // Show why instead of a black window, then retry. -3 = navigation aborted by a redirect, not a failure.
+    const fail = (title: string, detail: string) => {
+      log(`ERROR ${title}: ${detail}`);
+      win!.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorPage(title, detail, RETRY_S))}`);
+      setTimeout(start, RETRY_S * 1000);
+    };
+    win.webContents.on('console-message', (e) => {
+      if (e.level === 'warning' || e.level === 'error') log(`renderer ${e.level}: ${e.message} (${e.sourceId}:${e.lineNumber})`);
+    });
+    win.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+      if (isMainFrame && code !== -3) fail(`Cannot reach ${new URL(url).origin}`, `${desc} (${code})`);
+    });
+    win.webContents.on('render-process-gone', (_e, d) => fail('The screen stopped unexpectedly', d.reason));
+    ipcMain.on('fatal', (_e, message: string) => fail('Startup failed', message));
+    start();
   });
   app.on('window-all-closed', () => app.quit());
 }

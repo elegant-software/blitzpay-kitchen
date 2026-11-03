@@ -17,6 +17,7 @@ declare global {
       config(): Promise<Config>;
       loadToken(): Promise<{ token: string; refreshToken: string } | null>;
       saveToken(t: { token?: string; refreshToken?: string } | null): Promise<void>;
+      fatal(message: string): void;
     };
   }
 }
@@ -37,6 +38,12 @@ const t = navigator.language.toLowerCase().startsWith('de') ? strings.de : strin
 document.documentElement.lang = t === strings.de ? 'de' : 'en';
 
 const UNDO_MS = 10_000;
+
+// Any error before the first render (config, Keycloak init) goes to the error page instead of a black screen.
+let started = false;
+const fatal = (err: unknown) => { if (!started) window.kitchen.fatal(String((err as Error)?.message ?? err)); };
+addEventListener('error', (e) => fatal(e.error ?? e.message));
+addEventListener('unhandledrejection', (e) => fatal(e.reason));
 const cfg = await window.kitchen.config();
 const base = `${cfg.apiBaseUrl}/v1/merchant/branches/${encodeURIComponent(cfg.branchId)}/kitchen`;
 
@@ -59,7 +66,10 @@ async function setupAuth(): Promise<() => Promise<Record<string, string>>> {
   try {
     // With a saved token keycloak-js refreshes it; without one (or after the login redirect) it handles login.
     await kc.init(saved ? { ...common, ...saved } : { ...common, onLoad: 'login-required' });
-  } catch {
+  } catch (err) {
+    console.error('Keycloak init failed', err instanceof Error ? err.stack : JSON.stringify(err));
+    // A fresh login that fails would only loop back to the login page: show why instead.
+    if (!saved) throw new Error(`Login failed: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
     if (!kc.refreshToken) {
       await window.kitchen.saveToken(null);
       await kc.login({ redirectUri, scope: 'openid offline_access' });
@@ -247,8 +257,10 @@ function chime() {
 
 // ---- Stream (fetch-based SSE so we can send the bearer token) -----------
 
-$('#offline').textContent = t.offline;
-const setOffline = (off: boolean) => $('#offline').classList.toggle('hidden', !off);
+const setOffline = (off: boolean, reason = '') => {
+  $('#offline').textContent = reason ? `${t.offline} (${reason})` : t.offline;
+  $('#offline').classList.toggle('hidden', !off);
+};
 
 async function stream() {
   const ctrl = new AbortController();
@@ -301,7 +313,7 @@ async function connectLoop() {
       delay = 1000; // clean end: reconnect quickly
     } catch (err) {
       console.warn('stream error', err);
-      setOffline(true);
+      setOffline(true, (err as Error)?.message);
       delay = Math.min(delay * 2, 30_000);
     }
     await new Promise((r) => setTimeout(r, delay));
@@ -317,4 +329,5 @@ setInterval(() => {
 }, 60_000);
 
 render();
+started = true;
 connectLoop();
