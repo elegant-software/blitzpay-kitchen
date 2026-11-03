@@ -1,0 +1,20 @@
+name: Release · Notes
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release-notes:
+    name: Release Notes
+    if: ${{ github.event.pull_request.merged == true }}
+    uses: elegant-software/elegant-ci-cd-pipeline/.github/workflows/release-notes.yml@main
+    secrets:
+      RELEASE_PUBLISH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}

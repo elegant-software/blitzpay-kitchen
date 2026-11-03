@@ -1,0 +1,92 @@
+# Label configuration for BlitzPay automated release management.
+# Each entry defines a label and its matching rules.
+#
+# Fields:
+#   name          - GitHub label name
+#   color         - Hex color (without leading #)
+#   icon          - Emoji used in release note section headers
+#   title         - Human-readable section heading in release notes
+#   description   - Label description shown on GitHub
+#   bump          - Semver bump triggered by this label: major | minor | patch
+#   priority      - (optional) Priority for release notes. Higher = more important.
+#                   Only the highest-priority label appears in release notes.
+#                   Labels without priority are secondary (shown only if no primary label matched).
+#   file_patterns - (optional) List of regex patterns matched against changed file paths
+#   title_patterns- (optional) List of regex patterns matched against PR title + branch name (case-insensitive)
+#   body_patterns - (optional) List of regex patterns matched against PR title + body (case-sensitive)
+
+labels:
+  - name: breaking-change
+    color: "B60205"
+    icon: "💥"
+    title: "Breaking Changes"
+    description: "Breaking change"
+    bump: major
+    priority: 100
+    body_patterns:
+      - "(BREAKING CHANGE|!:)"
+
+  - name: feature
+    color: "0E8A16"
+    icon: "🚀"
+    title: "Features"
+    description: "New feature or enhancement"
+    bump: minor
+    priority: 90
+    file_patterns:
+      - "^(src/|renderer/)"
+
+  - name: bug-fix
+    color: "D93F0B"
+    icon: "🐛"
+    title: "Bug Fixes"
+    description: "Bug fix or hotfix"
+    bump: patch
+    priority: 80
+    title_patterns:
+      - "(fix|bug|hotfix)"
+
+  - name: documentation
+    color: "0075CA"
+    icon: "📚"
+    title: "Documentation"
+    description: "Documentation changes"
+    bump: patch
+    file_patterns:
+      - "(\\.md$|^docs/)"
+
+  - name: infrastructure
+    color: "E4E669"
+    icon: "🏗️"
+    title: "Infrastructure"
+    description: "Infrastructure / CI / Docker / Kubernetes changes"
+    bump: patch
+    file_patterns:
+      - "^\\.github/"
+
+  - name: dependencies
+    color: "0366D6"
+    icon: "📦"
+    title: "Dependencies"
+    description: "Dependency updates"
+    bump: patch
+    file_patterns:
+      - "^package(-lock)?\\.json$"
+
+  - name: tests
+    color: "BFD4F2"
+    icon: "✅"
+    title: "Tests"
+    description: "Test additions or changes"
+    bump: patch
+    file_patterns:
+      - "^(test/|mock/)"
+
+  - name: config
+    color: "C5DEF5"
+    icon: "⚙️"
+    title: "Configuration"
+    description: "Configuration / resource changes"
+    bump: patch
+    file_patterns:
+      - "^(config\\.json|tsconfig\\.json)$"

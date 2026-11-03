@@ -1,0 +1,27 @@
+name: CI · Build & Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  # Shared npm test runner (JUnit summary, artifact, "Unit Tests" check).
+  unit-tests:
+    name: Unit Tests
+    uses: elegant-software/elegant-ci-cd-pipeline/.github/workflows/frontend-npm-test.yml@main
+    with:
+      node-version: '24'
+      # npm test = tsc + node:test, so this is also the typecheck/build.
+      test-command: >-
+        mkdir -p test-results/unit && npx tsc &&
+        node --test --test-reporter=spec --test-reporter-destination=stdout
+        --test-reporter=junit --test-reporter-destination=test-results/unit/junit.xml test/
+      test-results-path: test-results/unit/*.xml

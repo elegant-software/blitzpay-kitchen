@@ -1,0 +1,90 @@
+# Runs automatically when a GitHub Release is published (normally via "Release · Create Release").
+# Checks CI passed for the tagged commit, builds the installers on each OS and attaches them to the release.
+# ponytail: unsigned builds; add CSC_LINK/CSC_KEY_PASSWORD (+ Apple notarization) secrets when kitchens get managed installs.
+name: CD · Release Installers
+run-name: Release ${{ github.event.release.tag_name || github.ref_name }} → installers
+
+on:
+  release:
+    types:
+      - released
+      - prereleased
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  verify-release-ci:
+    name: Verify CI passed for ${{ github.event.release.tag_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure push CI succeeded for release commit
+        uses: actions/github-script@v9
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: ref } = await github.rest.git.getRef({ owner, repo, ref: `tags/${process.env.RELEASE_TAG}` });
+            let sha = ref.object.sha;
+            if (ref.object.type === 'tag') {
+              sha = (await github.rest.git.getTag({ owner, repo, tag_sha: sha })).data.object.sha;
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner, repo, workflow_id: 'ci-build.yml', status: 'completed', per_page: 100,
+            });
+            const ok = runs.find((r) => r.head_sha === sha && r.conclusion === 'success');
+            if (!ok) {
+              core.setFailed(`No successful CI run found for release commit ${sha}. Publish the release only after CI succeeds for that commit.`);
+              return;
+            }
+            core.info(`Matched successful CI run #${ok.run_number} for ${sha}.`);
+
+  build-installers:
+    name: Build ${{ matrix.os }}
+    needs: verify-release-ci
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            files: release/*.AppImage
+          - os: windows-latest
+            files: release/*.exe
+          - os: macos-latest
+            files: release/*.dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Stamp version from tag
+        shell: bash
+        run: npm version --no-git-tag-version --allow-same-version "${RELEASE_TAG#v}"
+
+      - name: Test
+        run: npm test
+
+      - name: Build installer
+        run: npx tsc && npx electron-builder --publish never
+
+      - name: Attach installer to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" ${{ matrix.files }} --clobber
+          echo "### 📦 ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+          ls ${{ matrix.files }} >> "$GITHUB_STEP_SUMMARY"

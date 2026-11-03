@@ -1,0 +1,44 @@
+# Creates the next GitHub Release (tag + notes) from the commits since the last release.
+# The version number is calculated automatically from the commit messages — you don't type it.
+# Publishing the release then triggers cd-release.yml, which builds the installers and attaches them to the release.
+# Nothing is released if there are no new commits.
+name: Release · Create Release
+
+run-name: "Release from ${{ inputs.base_branch }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: 'Branch to release. "main" = normal release; any other branch = alpha pre-release.'
+        required: false
+        type: string
+        default: main
+      release_boundary:
+        description: 'Advanced: compare against this tag instead of the latest one (e.g. v1.2.3). Leave empty normally.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manual-release-${{ inputs.base_branch }}
+  cancel-in-progress: false
+
+jobs:
+  manual-release:
+    name: "Release from ${{ inputs.base_branch }}"
+    permissions:
+      contents: write
+    uses: elegant-software/elegant-ci-cd-pipeline/.github/workflows/manual-release.yml@main
+    with:
+      release_boundary: ${{ inputs.release_boundary }}
+      base_branch: ${{ inputs.base_branch }}
+      automation_ref: main
+      version_suffix: ${{ inputs.base_branch != 'main' && '-alpha' || '' }}
+      prerelease: ${{ inputs.base_branch != 'main' }}
+    secrets:
+      RELEASE_PUBLISH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+      AUTOMATION_READ_TOKEN: ${{ secrets.AUTOMATION_READ_TOKEN }}

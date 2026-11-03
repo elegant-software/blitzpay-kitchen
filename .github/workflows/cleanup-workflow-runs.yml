@@ -1,0 +1,33 @@
+name: Cleanup · Workflow Runs
+run-name: >-
+  ${{ github.event_name == 'schedule' && 'Scheduled' || 'Manual' }} ·
+  ${{ (github.event_name == 'schedule' || inputs.dry_run) && 'Dry run' || 'LIVE' }} ·
+  older than ${{ inputs.older_than_days || 14 }}d
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+    inputs:
+      older_than_days:
+        description: Delete workflow runs older than this many days
+        required: true
+        type: number
+        default: 14
+      dry_run:
+        description: Dry run only (list, don't delete)
+        type: boolean
+        default: true
+
+jobs:
+  cleanup:
+    name: Workflow Runs
+    permissions:
+      actions: write
+      contents: write
+    uses: elegant-software/elegant-ci-cd-pipeline/.github/workflows/cleanup-github-workflows.yml@main
+    with:
+      # reusable workflow declares older_than_days as a string
+      older_than_days: ${{ inputs.older_than_days || '14' }}
+      # scheduled runs have no inputs and stay dry runs
+      dry_run: ${{ github.event_name == 'schedule' || inputs.dry_run }}

@@ -1,0 +1,20 @@
+name: PR · Auto-Label
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    name: Labels
+    uses: elegant-software/elegant-ci-cd-pipeline/.github/workflows/pull-request-auto-label.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      repository: ${{ github.repository }}
+      labels_config_path: .github/labels.yml
+
