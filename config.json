@@ -1,0 +1,8 @@
+{
+  "apiBaseUrl": "http://localhost:8787",
+  "branchId": "demo-branch",
+  "keycloakUrl": "http://localhost:8080",
+  "keycloakRealm": "blitzpay",
+  "keycloakClientId": "blitzpay-kitchen",
+  "overdueMinutes": 15
+}
