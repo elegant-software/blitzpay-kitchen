@@ -10,7 +10,7 @@
     "build": "tsc",
     "start": "tsc && electron .",
     "mock": "node mock/server.mjs",
-    "test": "tsc && node --test test/",
+    "test": "tsc && node --test",
     "package": "tsc && electron-builder"
   },
   "dependencies": {
