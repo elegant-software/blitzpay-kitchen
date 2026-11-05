@@ -43,7 +43,7 @@ export const isToday = (iso: string, now: Date) => new Date(iso).toDateString() 
 
 const sameItems = (a: Item[], b: Item[]) =>
   a.length === b.length &&
-  a.every((x, i) => x.itemId === b[i].itemId && x.quantity === b[i].quantity && x.locked === b[i].locked);
+  a.every((x, i) => x.itemId === b[i].itemId && x.name === b[i].name && x.quantity === b[i].quantity && x.locked === b[i].locked);
 
 /** Current items annotated against the baseline; removed lines are appended at the end. */
 export function diffItems(baseline: Item[] | null, current: Item[]): Line[] {
@@ -53,7 +53,7 @@ export function diffItems(baseline: Item[] | null, current: Item[]): Line[] {
     const prev = before.get(i.itemId);
     before.delete(i.itemId);
     if (!prev) return { name: i.name, quantity: i.quantity, kind: 'added', locked: i.locked };
-    if (prev.quantity !== i.quantity)
+    if (prev.quantity !== i.quantity || prev.name !== i.name || prev.locked !== i.locked)
       return { name: i.name, quantity: i.quantity, prevQuantity: prev.quantity, kind: 'changed', locked: i.locked };
     return { name: i.name, quantity: i.quantity, kind: 'same', locked: i.locked };
   });
@@ -69,6 +69,8 @@ export function applyOrder(cards: Cards, o: KitchenOrder, opts: { markNew: boole
     cards.delete(id);
     return 'none';
   }
+  // Cancellation alerts survive snapshots/status updates until explicitly dismissed.
+  if (cur?.order.cancelled) return 'none';
   if (o.cancelled) {
     if (opts.dismissed.has(id)) return 'none';
     const wasCancelled = cur?.order.cancelled;

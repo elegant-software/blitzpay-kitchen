@@ -72,9 +72,15 @@ The stream reconnects if nothing (not even a `:` heartbeat comment) arrives for 
 
 ## Build, test, package
 
+The kitchen UI uses a compact queue and a focused-order panel, with independent scrolling.
+Changes require explicit acknowledgement; cancellations remain until dismissed. Ready offers
+a 10-second Undo window. Failed updates offer Retry, and connection loss keeps orders visible
+while disabling preparation actions. The header uses the bundled bona’me logo in `renderer/assets/`.
+
 ```sh
 npm run build      # tsc → dist/
 npm test           # node:test on the order diff/reconcile logic (src/renderer/logic.ts)
+npm run test:ui    # hidden Electron interaction checks; screenshot saved in the system temp directory
 npm run package    # electron-builder for the current OS → release/
 npx electron-builder --win --linux   # cross-build (macOS dmg must be built on macOS)
 ```

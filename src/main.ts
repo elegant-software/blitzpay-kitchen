@@ -85,6 +85,15 @@ if (!app.requestSingleInstanceLock()) {
       },
     });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    if (!app.isPackaged) {
+      win.webContents.on('before-input-event', (event, input) => {
+        if (input.type === 'keyDown' && ((input.control && input.shift && input.key.toLowerCase() === 'i') || input.key === 'F12')) {
+          event.preventDefault();
+          win?.webContents.toggleDevTools();
+        }
+      });
+      if (process.env.DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' });
+    }
     win.loadURL('app://kitchen/renderer/index.html');
   });
   app.on('window-all-closed', () => app.quit());

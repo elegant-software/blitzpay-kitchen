@@ -11,6 +11,7 @@
     "start": "tsc && electron .",
     "mock": "node mock/server.mjs",
     "test": "tsc && node --test",
+    "test:ui": "tsc && electron scripts/ui-smoke.cjs",
     "package": "tsc && electron-builder"
   },
   "dependencies": {
