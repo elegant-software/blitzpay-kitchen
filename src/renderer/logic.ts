@@ -15,6 +15,8 @@ export interface KitchenOrder {
   pickupNumber: number | null;
   orderType: 'PRE_ORDER' | 'WALK_IN_ORDERING';
   shopperFirstName?: string;
+  tableId?: string;
+  tableName?: string;
   receivedAt: string;
   preparationStatus: PreparationStatus;
   cancelled: boolean;

@@ -1,9 +1,13 @@
+import { validateConnectionConfig, verifyKeycloak } from './connections.js';
+import { createKitchenApi, type KitchenSession } from './kitchen-api.js';
+import { stationPath, resolveStation, type Station } from './stations.js';
 import Keycloak from '../../node_modules/keycloak-js/lib/keycloak.js';
 import { applyOrder, diffItems, isToday, reconcile, sorted, type Cards, type KitchenOrder, type Outcome } from './logic.js';
 
 interface Config {
   apiBaseUrl: string;
   branchId: string;
+  stationId?: string;
   keycloakUrl: string;
   keycloakRealm: string;
   keycloakClientId: string;
@@ -25,12 +29,12 @@ declare global {
 const strings = {
   en: {
     PRE_ORDER: 'Pre-Order', WALK_IN_ORDERING: 'Walk-In', RECEIVED: 'Received', PREPARING: 'Preparing',
-    toPreparing: 'Preparing', toReady: 'Ready', cancelled: 'CANCELLED', tapToDismiss: 'Tap to dismiss',
+    toPreparing: 'Preparing', toReady: 'Station ready', cancelled: 'CANCELLED', tapToDismiss: 'Tap to dismiss',
     new: 'NEW', undo: 'Undo', offline: 'Offline – reconnecting…', empty: 'No open orders',
   },
   de: {
     PRE_ORDER: 'Vorbestellung', WALK_IN_ORDERING: 'Vor Ort', RECEIVED: 'Eingegangen', PREPARING: 'In Zubereitung',
-    toPreparing: 'Zubereiten', toReady: 'Fertig', cancelled: 'STORNIERT', tapToDismiss: 'Tippen zum Schließen',
+    toPreparing: 'Zubereiten', toReady: 'Station fertig', cancelled: 'STORNIERT', tapToDismiss: 'Tippen zum Schließen',
     new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen',
   },
 };
@@ -45,20 +49,22 @@ const fatal = (err: unknown) => { if (!started) window.kitchen.fatal(String((err
 addEventListener('error', (e) => fatal(e.error ?? e.message));
 addEventListener('unhandledrejection', (e) => fatal(e.reason));
 const cfg = await window.kitchen.config();
+validateConnectionConfig(cfg);
+await verifyKeycloak(cfg);
 const base = `${cfg.apiBaseUrl}/v1/merchant/branches/${encodeURIComponent(cfg.branchId)}/kitchen`;
 
 // ---- Auth ---------------------------------------------------------------
 
-async function setupAuth(): Promise<() => Promise<Record<string, string>>> {
-  if (cfg.mockAuth) return async () => ({});
+async function setupAuth(): Promise<KitchenSession> {
+  if (cfg.mockAuth) return { mock: true, headers: async () => ({}), login: async () => {} };
   const kc = new Keycloak({ url: cfg.keycloakUrl, realm: cfg.keycloakRealm, clientId: cfg.keycloakClientId });
   const redirectUri = location.origin + location.pathname;
   const save = () => window.kitchen.saveToken({ token: kc.token, refreshToken: kc.refreshToken });
   kc.onAuthSuccess = save;
   kc.onAuthRefreshSuccess = save;
   kc.onAuthRefreshError = () => {
-    // keycloak-js clears the refresh token on HTTP 400 (revoked/expired); network errors keep it.
-    if (!kc.refreshToken) window.kitchen.saveToken(null).then(() => kc.login({ redirectUri }));
+    // Keycloak clears revoked refresh tokens; the request path starts a fresh login.
+    if (!kc.refreshToken) void window.kitchen.saveToken(null);
   };
   kc.onTokenExpired = () => kc.updateToken(30).catch(() => {});
   const saved = await window.kitchen.loadToken();
@@ -76,22 +82,37 @@ async function setupAuth(): Promise<() => Promise<Record<string, string>>> {
     }
     // Otherwise the network is down: keep the token, requests retry the refresh.
   }
-  return async () => {
-    await kc.updateToken(30);
-    return { Authorization: `Bearer ${kc.token}` };
+  const login = async () => {
+    await window.kitchen.saveToken(null);
+    kc.clearToken();
+    await kc.login({ redirectUri, scope: 'openid offline_access' });
+  };
+  return {
+    mock: false,
+    login,
+    headers: async (forceRefresh) => {
+      try { await kc.updateToken(forceRefresh ? -1 : 30); }
+      catch (error) {
+        if (!kc.refreshToken) await login();
+        throw new Error(`Could not refresh the kitchen login at ${cfg.keycloakUrl}. Check the connection and sign in again.`);
+      }
+      if (!kc.token) {
+        await login();
+        throw new Error('The kitchen login is missing. Sign in again.');
+      }
+      return { Authorization: `Bearer ${kc.token}` };
+    },
   };
 }
 
-const authHeaders = await setupAuth();
+const api = createKitchenApi(base, await setupAuth());
 
-async function api(path: string, init: RequestInit = {}) {
-  const res = await fetch(base + path, { ...init, headers: { ...(await authHeaders()), ...init.headers } });
-  if (!res.ok) throw new Error(`${init.method ?? 'GET'} ${path}: ${res.status}`);
-  return res;
-}
+const stationStorageKey = `station:${cfg.apiBaseUrl}:${cfg.branchId}`;
+let stationId = cfg.stationId || localStorage.getItem(stationStorageKey) || '';
+const ticketPath = (path: string) => stationPath(stationId, path);
 
 const postStatus = (orderId: string, status: 'PREPARING' | 'READY') =>
-  api(`/orders/${encodeURIComponent(orderId)}/preparation-status`, {
+  api(ticketPath(`/orders/${encodeURIComponent(orderId)}/preparation-status`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -102,7 +123,7 @@ const postStatus = (orderId: string, status: 'PREPARING' | 'READY') =>
 const cards: Cards = new Map();
 const pendingReady = new Map<string, number>(); // orderId -> timeout handle
 const flashing = new Set<string>();
-const dismissKey = () => `dismissed:${new Date().toDateString()}`;
+const dismissKey = () => `dismissed:${cfg.apiBaseUrl}:${cfg.branchId}:${stationId}:${new Date().toDateString()}`;
 const dismissed = new Set<string>(JSON.parse(localStorage.getItem(dismissKey()) ?? '[]'));
 const opts = (markNew: boolean) => ({ markNew, dismissed, now: new Date() });
 
@@ -112,7 +133,7 @@ function handle(id: string, outcome: Outcome) {
     clearTimeout(pendingReady.get(id));
     pendingReady.delete(id);
   }
-  if (outcome === 'removed') {
+  if (outcome === 'removed' || outcome === 'cancelled') {
     clearTimeout(pendingReady.get(id));
     pendingReady.delete(id);
   }
@@ -125,7 +146,7 @@ function handle(id: string, outcome: Outcome) {
 
 let loaded = false; // first load after start: show orders without chiming
 async function resync() {
-  const orders: KitchenOrder[] = await (await api('/orders')).json();
+  const orders: KitchenOrder[] = await (await api(ticketPath('/orders'))).json();
   reconcile(cards, orders, opts(loaded)).forEach((outcome, i) => handle(orders[i].orderId, outcome));
   loaded = true;
   render();
@@ -204,6 +225,7 @@ function render() {
           <div class="meta">
             <span class="badge ${o.orderType.toLowerCase()}">${t[o.orderType]}</span>
             ${o.shopperFirstName ? `<span class="name">${esc(o.shopperFirstName)}</span>` : ''}
+            ${o.tableName ? `<span class="table-name">${esc(o.tableName)}</span>` : ''}
             <span class="status">${o.cancelled ? '' : t[o.preparationStatus as 'RECEIVED' | 'PREPARING']}</span>
           </div>
           <ul>${lines}</ul>
@@ -269,7 +291,7 @@ async function stream() {
     clearTimeout(idle);
     idle = window.setTimeout(() => ctrl.abort(), 60_000); // no data/heartbeat for 60 s: reconnect
   };
-  const res = await api('/stream', { headers: { Accept: 'text/event-stream' }, signal: ctrl.signal });
+  const res = await api(ticketPath('/stream'), { headers: { Accept: 'text/event-stream' }, signal: ctrl.signal });
   setOffline(false);
   watchdog();
   await resync();
@@ -328,6 +350,39 @@ setInterval(() => {
   if (cards.size !== before) render();
 }, 60_000);
 
-render();
-started = true;
-connectLoop();
+async function chooseStation() {
+  const stations: Station[] = await (await api('/stations')).json();
+  const select = document.querySelector<HTMLSelectElement>('#station')!;
+  const chosen = resolveStation(stations, stationId);
+  if (cfg.stationId && !chosen) throw new Error('Configured preparation station is not available in this branch. Check KITCHEN_STATION_ID.');
+  select.innerHTML = `<option value="">${t === strings.de ? 'Station ausw\u00e4hlen' : 'Select a station'}</option>` +
+    stations.map(station => `<option value="${esc(station.id)}">${esc(station.name)}</option>`).join('');
+  stationId = chosen?.id ?? '';
+  select.value = stationId;
+  select.disabled = !!cfg.stationId && !!chosen;
+  $('#station-label').textContent = t === strings.de ? 'Vorbereitungsstation' : 'Preparation station';
+  $('#station-note').textContent = t === strings.de
+    ? 'Nicht zugeordnete Artikel finden Sie unter Unassigned / General kitchen.'
+    : 'Check Unassigned / General kitchen for items without a station assignment.';
+  select.addEventListener('change', () => {
+    if (!select.value) return;
+    if (pendingReady.size && !confirm(t === strings.de ? 'Station wechseln und ausstehende Fertigmeldungen verwerfen?' : 'Switch station and cancel pending ready actions?')) {
+      select.value = stationId;
+      return;
+    }
+    localStorage.setItem(stationStorageKey, select.value);
+    location.reload();
+  });
+  if (!chosen) {
+    $('#grid').innerHTML = `<p class="empty">${t === strings.de ? 'Bitte w\u00e4hlen Sie eine Station.' : 'Select a preparation station to view its tickets.'}</p>`;
+    started = true;
+    return;
+  }
+  localStorage.setItem(stationStorageKey, stationId);
+  document.title = `${chosen.name} - BlitzPay Kitchen`;
+  render();
+  started = true;
+  connectLoop();
+}
+
+await chooseStation();

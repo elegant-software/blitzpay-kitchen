@@ -11,7 +11,8 @@
     "start": "tsc && electron .",
     "mock": "node mock/server.mjs",
     "test": "tsc && node --test",
-    "package": "tsc && electron-builder"
+    "package": "tsc && electron-builder",
+    "test:ui": "tsc && electron scripts/ui-smoke.cjs"
   },
   "dependencies": {
     "keycloak-js": "^26.2.5"
