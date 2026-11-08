@@ -1,3 +1,4 @@
+import { profileDirectory } from './profile.js';
 import { app, BrowserWindow, ipcMain, Menu, net, powerSaveBlocker, protocol, safeStorage } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,15 +9,23 @@ import { errorPage } from './renderer/error-page.js';
 const root = path.join(import.meta.dirname, '..');
 // Optional .env next to package.json (KEY=value lines). Real environment variables still win.
 try { process.loadEnvFile(path.join(root, '.env')); } catch {}
+const sharedUserData = app.getPath('userData');
+const profile = process.env.KITCHEN_PROFILE ?? '';
+if (profile) {
+  const directory = profileDirectory(sharedUserData, profile);
+  fs.mkdirSync(directory, { recursive: true });
+  app.setPath('userData', directory);
+}
 const kiosk = process.env.KIOSK !== '0';
 
 // Bundled config.json < <userData>/config.json < environment variables.
 function loadConfig() {
   const read = (f: string) => (fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {});
-  const c = { ...read(path.join(root, 'config.json')), ...read(path.join(app.getPath('userData'), 'config.json')) };
+  const c = { ...read(path.join(root, 'config.json')), ...read(path.join(sharedUserData, 'config.json')), ...read(path.join(app.getPath('userData'), 'config.json')) };
   const env: Record<string, string> = {
     apiBaseUrl: 'KITCHEN_API_URL',
     branchId: 'KITCHEN_BRANCH_ID',
+    stationId: 'KITCHEN_STATION_ID',
     keycloakUrl: 'KEYCLOAK_URL',
     keycloakRealm: 'KEYCLOAK_REALM',
     keycloakClientId: 'KEYCLOAK_CLIENT_ID',
@@ -25,7 +34,7 @@ function loadConfig() {
   for (const [key, name] of Object.entries(env)) if (process.env[name]) c[key] = process.env[name];
   c.overdueMinutes = Number(c.overdueMinutes) || 15;
   c.mockAuth = process.env.MOCK_AUTH === '1' || c.mockAuth === true;
-  log(`Kitchen Screen: API ${c.apiBaseUrl}, Keycloak ${c.keycloakUrl}, branch ${c.branchId}`);
+  log(`Kitchen Screen: API ${c.apiBaseUrl}, Keycloak ${c.keycloakUrl}, branch ${c.branchId}, auth ${c.mockAuth ? 'mock' : 'keycloak'}, profile ${profile || 'default'}`);
   return c;
 }
 
@@ -113,7 +122,7 @@ if (!app.requestSingleInstanceLock()) {
       if (isMainFrame && code !== -3) fail(`Cannot reach ${new URL(url).origin}`, `${desc} (${code})`);
     });
     win.webContents.on('render-process-gone', (_e, d) => fail('The screen stopped unexpectedly', d.reason));
-    ipcMain.on('fatal', (_e, message: string) => fail('Startup failed', message));
+    ipcMain.on('fatal', (_e, message: string) => fail(profile ? `Startup failed (${profile})` : 'Startup failed', message));
     start();
   });
   app.on('window-all-closed', () => app.quit());

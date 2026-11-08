@@ -97,3 +97,76 @@ Same flow as the other BlitzPay repos, using the shared workflows in [`elegant-c
 | `cleanup-*.yml` | Nightly (dry run) / manual | Prunes old releases, tags and workflow runs |
 
 Repo secret needed: `RELEASE_PUBLISH_TOKEN` (same as other repos). Installers are not code-signed yet, so Windows SmartScreen and macOS Gatekeeper will warn on first launch.
+
+
+## Food Kitchen and Drinks Bar (issue #199)
+
+Update/restart the backend first so its station-ticket migration and endpoints are available.
+Configure the branch stations and category defaults/product overrides in the admin dashboard.
+Newly submitted items retain that routing even if the catalog is changed later. Existing orders
+and unmapped products stay in the visible **Unassigned / General kitchen** queue.
+
+The screen lists stations authorized for its existing branch login. Select **Food Kitchen** on
+one screen and **Drinks Bar** on the other. The selection is remembered per API/branch/profile.
+Each screen receives only its station items; both keep the customer order number and table.
+The Ready action completes only the selected station. Customer readiness waits for all stations.
+No additional Keycloak client or station user is required.
+
+On two separate devices, run `npm.cmd start` on each and choose its station.
+For two windows on the same Windows computer, use two PowerShell terminals in this repo,
+with the same backend/branch/Keycloak settings (from your existing `.env` or environment).
+
+First terminal:
+
+```powershell
+$env:KITCHEN_PROFILE = 'food'
+$env:MOCK_AUTH = '0'
+$env:KIOSK = '0'
+npm.cmd start
+```
+
+Second terminal:
+
+```powershell
+$env:KITCHEN_PROFILE = 'drinks'
+$env:MOCK_AUTH = '0'
+$env:KIOSK = '0'
+npm.cmd start
+```
+
+Select the station in each window and move it to its monitor. Profiles isolate the single-instance
+lock, tokens, station choice and cancellation dismissals. They inherit common server configuration;
+optional profile-specific config lives under `<userData>/profiles/<profile>/config.json`.
+`KITCHEN_PROFILE` accepts letters, digits, underscores and hyphens only.
+
+Optionally pin a screen with `KITCHEN_STATION_ID=<station-uuid>` (`stationId` in config.json).
+The backend validates the station against the authenticated branch. A bad pinned station is shown
+as a startup error, never replaced with another branch or a branch-wide queue.
+
+Station API paths (under `/v1/merchant/branches/{branchId}/kitchen`):
+
+- `GET /stations`
+- `GET /stations/{stationId}/orders`
+- `GET /stations/{stationId}/stream`
+- `POST /stations/{stationId}/orders/{orderId}/preparation-status`
+
+The mock supports Food Kitchen and Drinks Bar and seeds order #42 with two burgers and two colas
+at Table 7. `npm test` includes a two-station HTTP/reconnect smoke test.
+
+`npm run test:ui` runs two hidden Electron renderers against the mock and verifies that completing drinks leaves food visible.
+
+
+### Startup connection checks
+
+The bundled demo connection is for the mock. Real screens need `KITCHEN_API_URL`,
+`KITCHEN_BRANCH_ID`, `KEYCLOAK_URL`, `KEYCLOAK_REALM`, and `KEYCLOAK_CLIENT_ID`
+in the gitignored `.env`, their environment, or user config. Real environment variables take
+precedence over `.env`; clear old terminal overrides if they point at a different server.
+Both station profiles share `.env`. Use `MOCK_AUTH=1` only with the development mock.
+
+Startup validates the real branch setting and Keycloak realm discovery before navigating to
+login. An unreachable API names the failed service/address; a connecting message appears while
+startup is pending. If the backend was updated, restart it to apply station-ticket migrations
+before restarting the screens.
+
+A real API 401 triggers one forced token refresh. If it still rejects the session, the screen clears its saved session and starts login again. Mock-mode 401s explicitly identify `MOCK_AUTH=0` as the required real-server setting. Startup logs include the profile and authentication mode, never tokens.

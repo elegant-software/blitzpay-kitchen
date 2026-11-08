@@ -10,7 +10,11 @@
 <body>
   <header class="brand-header" hidden><img id="logo" alt="Merchant logo"></header>
   <div id="offline" class="hidden"></div>
-  <main id="grid"></main>
+  <nav class="station-bar" aria-label="Preparation station">
+    <div><label id="station-label" for="station">Preparation station</label><select id="station"></select></div>
+    <p id="station-note"></p>
+  </nav>
+  <main id="grid"><p class="empty" role="status">Connecting to kitchen...</p></main>
   <div id="undo"></div>
 </body>
 </html>

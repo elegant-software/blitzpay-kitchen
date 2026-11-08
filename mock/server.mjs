@@ -12,7 +12,19 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 const orders = new Map();
 const clients = new Set();
-let pickup = 0;
+let pickup = 41;
+const FOOD = '44444444-4444-4444-4444-444444444441';
+const DRINKS = '44444444-4444-4444-4444-444444444442';
+const UNASSIGNED = '00000000-0000-0000-0000-000000000000';
+const stations = [{ id: FOOD, name: 'Food Kitchen' }, { id: DRINKS, name: 'Drinks Bar' }, { id: UNASSIGNED, name: 'Unassigned / General kitchen' }];
+const clientStations = new Map();
+const progress = items => items.length === 0 || items.every(i => i.locked || i.preparationStatus === 'READY') ? 'READY'
+  : items.some(i => i.locked || i.preparationStatus !== 'RECEIVED') ? 'PREPARING' : 'RECEIVED';
+function ticket(order, stationId) {
+  if (!stationId) return order;
+  const items = order.items.filter(i => i.stationId === stationId);
+  return { ...order, items, preparationStatus: progress(items), cancelled: order.cancelled && items.length > 0 };
+}
 
 function newOrder(minutesAgo = 0) {
   const o = {
@@ -34,14 +46,21 @@ function newOrder(minutesAgo = 0) {
 
 function addItem(o) {
   const name = pick(MENU.filter((m) => !o.items.some((i) => i.name === m)));
-  o.items.push({ itemId: randomUUID(), name, quantity: 1 + Math.floor(Math.random() * 2), locked: false });
+  const stationId = /Cola|Cappuccino/.test(name) ? DRINKS : FOOD;
+  o.items.push({ itemId: randomUUID(), name, quantity: 1 + Math.floor(Math.random() * 2), locked: false,
+    stationId, stationName: stations.find(s => s.id === stationId).name, preparationStatus: 'RECEIVED' });
 }
 
 const open = () => [...orders.values()].filter((o) => o.preparationStatus !== 'READY' && !o.cancelled);
 
 function emit(event, o) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(o)}\n\n`;
-  for (const res of clients) res.write(msg);
+  for (const res of clients) {
+    const selected = clientStations.get(res);
+    const stationTicket = selected ? ticket(o, selected) : o;
+    const stationEvent = selected && !stationTicket.items.length ? 'order.changed' : event;
+    res.write(selected ? `event: ${stationEvent}\ndata: ${JSON.stringify(stationTicket)}\n\n` : msg);
+  }
   console.log(event, `#${o.pickupNumber}`, o.preparationStatus, o.items.map((i) => `${i.quantity}x ${i.name}${i.locked ? ' (locked)' : ''}`).join(', '));
 }
 
@@ -51,9 +70,11 @@ const triggers = {
     const o = pick(open());
     if (!o) return triggers.created();
     const r = Math.random();
-    if (r < 0.4) addItem(o);
-    else if (r < 0.7 || o.items.length < 2) pick(o.items).quantity += 1;
-    else o.items.splice(Math.floor(Math.random() * o.items.length), 1);
+    const editable = o.items.filter(item => !item.locked);
+    if (r < 0.4 || !editable.length) addItem(o);
+    else if (r < 0.7 || editable.length < 2) pick(editable).quantity += 1;
+    else o.items.splice(o.items.indexOf(pick(editable)), 1);
+    o.preparationStatus = progress(o.items);
     emit('order.changed', o);
   },
   cancelled: () => {
@@ -74,9 +95,16 @@ const triggers = {
 };
 
 // Seed: a few open orders (one already overdue) and one from yesterday the screen must hide.
-newOrder(22);
+const mixed = newOrder(22);
+mixed.tableName = 'Table 7';
+mixed.items = [
+  { itemId: randomUUID(), name: 'Burger', quantity: 2, locked: false, stationId: FOOD, stationName: 'Food Kitchen', preparationStatus: 'RECEIVED' },
+  { itemId: randomUUID(), name: 'Cola', quantity: 2, locked: false, stationId: DRINKS, stationName: 'Drinks Bar', preparationStatus: 'RECEIVED' },
+];
 newOrder(6);
-newOrder(1).preparationStatus = 'PREPARING';
+const preparing = newOrder(1);
+preparing.preparationStatus = 'PREPARING';
+preparing.items.forEach(item => { item.preparationStatus = 'PREPARING'; });
 newOrder(60 * 24 + 5);
 
 setInterval(() => {
@@ -95,11 +123,16 @@ http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.end();
 
-  const path = new URL(req.url, 'http://x').pathname;
+  let path = new URL(req.url, 'http://x').pathname;
+  const stationMatch = path.match(/^(.*\/kitchen)\/stations\/([^/]+)(\/.*)$/);
+  const stationId = stationMatch?.[2];
+  if (stationId && !stations.some(s => s.id === stationId)) return json(res, 404, { error: 'station not found' });
+  if (stationMatch) path = stationMatch[1] + stationMatch[3];
+  if (req.method === 'GET' && /\/kitchen\/stations$/.test(path)) return json(res, 200, stations);
   let m;
   if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/orders$/.test(path)) {
     // Like the real endpoint should: today's open orders plus cancelled ones (the screen tracks dismissal).
-    return json(res, 200, [...orders.values()].filter((o) => o.preparationStatus !== 'READY'));
+    return json(res, 200, [...orders.values()].map(o => ticket(o, stationId)).filter(o => o.items.length && (o.cancelled || o.preparationStatus !== 'READY')));
   }
   if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/branding$/.test(path)) {
     return json(res, 200, { logoUrl: process.env.MOCK_LOGO_URL ?? null });
@@ -109,7 +142,8 @@ http.createServer((req, res) => {
     res.write(': connected\n\n');
     const ping = setInterval(() => res.write(': ping\n\n'), 20_000);
     clients.add(res);
-    req.on('close', () => (clearInterval(ping), clients.delete(res)));
+    if (stationId) clientStations.set(res, stationId);
+    req.on('close', () => (clearInterval(ping), clients.delete(res), clientStations.delete(res)));
     return;
   }
   if (req.method === 'POST' && (m = path.match(/^\/v1\/merchant\/branches\/[^/]+\/kitchen\/orders\/([^/]+)\/preparation-status$/))) {
@@ -120,8 +154,15 @@ http.createServer((req, res) => {
       const { status } = JSON.parse(body || '{}');
       if (!o) return json(res, 404, { error: 'order not found' });
       if (!['PREPARING', 'READY'].includes(status)) return json(res, 400, { error: 'invalid status' });
-      o.preparationStatus = status;
-      json(res, 204);
+      if (o.cancelled) return json(res, 409, { error: 'order cancelled' });
+      const current = ticket(o, stationId);
+      if (!current.items.length) return json(res, 404, { error: 'station ticket not found' });
+      if (current.preparationStatus !== status && !(
+        current.preparationStatus === 'RECEIVED' && status === 'PREPARING' || current.preparationStatus === 'PREPARING' && status === 'READY'
+      )) return json(res, 409, { error: 'invalid transition' });
+      current.items.filter(i => !i.locked).forEach(i => { i.preparationStatus = status; if (status === 'READY') i.locked = true; });
+      o.preparationStatus = progress(o.items);
+      json(res, 200, ticket(o, stationId));
       emit('order.changed', o);
     });
     return;
@@ -131,4 +172,4 @@ http.createServer((req, res) => {
     return json(res, 204);
   }
   json(res, 404, { error: 'not found' });
-}).listen(PORT, () => console.log(`Kitchen mock API on http://localhost:${PORT} (event every ${EVENT_SECONDS}s)`));
+}).listen(PORT, function () { console.log(`Kitchen mock API on http://localhost:${this.address().port} (event every ${EVENT_SECONDS}s)`); });
