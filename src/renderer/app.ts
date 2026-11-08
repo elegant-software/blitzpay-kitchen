@@ -369,9 +369,6 @@ async function chooseStation() {
   select.value = stationId;
   select.disabled = !!cfg.stationId && !!chosen;
   $('#station-label').textContent = t === strings.de ? 'Vorbereitungsstation' : 'Preparation station';
-  $('#station-note').textContent = t === strings.de
-    ? 'Nicht zugeordnete Artikel finden Sie unter Unassigned / General kitchen.'
-    : 'Check Unassigned / General kitchen for items without a station assignment.';
   select.addEventListener('change', () => {
     if (!select.value) return;
     if (pendingReady.size && !confirm(t === strings.de ? 'Station wechseln und ausstehende Fertigmeldungen verwerfen?' : 'Switch station and cancel pending ready actions?')) {
