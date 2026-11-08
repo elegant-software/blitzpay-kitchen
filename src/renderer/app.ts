@@ -367,8 +367,16 @@ async function chooseStation() {
     stations.map(station => `<option value="${esc(station.id)}">${esc(station.name)}</option>`).join('');
   stationId = chosen?.id ?? '';
   select.value = stationId;
-  select.disabled = !!cfg.stationId && !!chosen;
   $('#station-label').textContent = t === strings.de ? 'Vorbereitungsstation' : 'Preparation station';
+  // The picker shows only while a choice is needed; afterwards the screen just names its station.
+  // "Change" is offered only when there is something to change to and the station is not pinned.
+  const picker = $('#station-picker'), current = $('#station-current'), change = $('#station-change');
+  picker.hidden = !!chosen;
+  current.hidden = !chosen;
+  $('#station-name').textContent = chosen?.name ?? '';
+  change.textContent = t === strings.de ? '\u00c4ndern' : 'Change';
+  change.hidden = !!cfg.stationId || stations.length < 2;
+  change.addEventListener('click', () => { picker.hidden = false; current.hidden = true; select.focus(); });
   select.addEventListener('change', () => {
     if (!select.value) return;
     if (pendingReady.size && !confirm(t === strings.de ? 'Station wechseln und ausstehende Fertigmeldungen verwerfen?' : 'Switch station and cancel pending ready actions?')) {
