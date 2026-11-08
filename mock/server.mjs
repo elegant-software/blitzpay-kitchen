@@ -15,8 +15,7 @@ const clients = new Set();
 let pickup = 41;
 const FOOD = '44444444-4444-4444-4444-444444444441';
 const DRINKS = '44444444-4444-4444-4444-444444444442';
-const UNASSIGNED = '00000000-0000-0000-0000-000000000000';
-const stations = [{ id: FOOD, name: 'Food Kitchen' }, { id: DRINKS, name: 'Drinks Bar' }, { id: UNASSIGNED, name: 'Unassigned / General kitchen' }];
+const stations = [{ id: FOOD, name: 'Food Kitchen' }, { id: DRINKS, name: 'Drinks Bar' }];
 const clientStations = new Map();
 const progress = items => items.length === 0 || items.every(i => i.locked || i.preparationStatus === 'READY') ? 'READY'
   : items.some(i => i.locked || i.preparationStatus !== 'RECEIVED') ? 'PREPARING' : 'RECEIVED';
