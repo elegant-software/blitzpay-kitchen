@@ -12,6 +12,7 @@
     "mock": "node mock/server.mjs",
     "test": "tsc && node --test",
     "package": "tsc && electron-builder",
+    "test:theme": "node scripts/keycloak-theme-smoke.mjs",
     "test:ui": "tsc && electron scripts/ui-smoke.cjs"
   },
   "dependencies": {

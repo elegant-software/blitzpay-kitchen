@@ -1,0 +1,93 @@
+/* Client-scoped theme; inherited Keycloak templates handle errors and required actions. */
+:root {
+  color-scheme: dark;
+  --kitchen-bg: #10151d;
+  --kitchen-surface: #1a2230;
+  --kitchen-border: #3b485d;
+  --kitchen-text: #f3f6fc;
+  --kitchen-muted: #b2bfd1;
+  --kitchen-blue: #397cf5;
+}
+html.login-pf { min-height: 100%; background: var(--kitchen-bg); }
+.login-pf body {
+  min-height: 100vh; margin: 0; color: var(--kitchen-text);
+  background: radial-gradient(ellipse at 50% 0, #223753 0, transparent 62%), var(--kitchen-bg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.login-pf-page { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; min-height: 100svh; box-sizing: border-box; padding: 48px 24px; }
+#kc-header { width: 100%; flex-shrink: 0; text-align: center; margin: 0 0 28px; color: var(--kitchen-text); }
+#kc-header-wrapper { text-align: center; color: var(--kitchen-text); padding: 0; font-size: 23px; font-weight: 650; letter-spacing: .16em; }
+.login-pf-page .card-pf {
+  flex-shrink: 0; width: 100%; max-width: 520px; padding: 40px; margin: 0 auto;
+  border: 1px solid var(--kitchen-border); border-top: 3px solid var(--kitchen-blue);
+  border-radius: 20px; background: var(--kitchen-surface);
+  box-shadow: 0 24px 70px #0005;
+}
+.login-pf-page .login-pf-header { position: relative; margin-bottom: 16px; text-align: left; }
+#kc-page-title { text-align: left; margin: 0; font-size: 32px; font-weight: 650; line-height: 1.2; letter-spacing: -.035em; }
+.kitchen-eyebrow {
+  display: block; margin-bottom: 16px; padding-right: 140px; color: #93b9ff;
+  font-size: 13px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase;
+}
+#kc-content, #kc-content-wrapper { margin: 0; }
+.login-pf-page .card-pf .kitchen-intro { margin: 0 0 30px; color: var(--kitchen-muted); font-size: 16px; }
+#kc-form-login .form-group, #kc-form-login > div.form-group:last-of-type { margin-bottom: 24px; }
+#kc-form-login label { display: block; margin-bottom: 9px; color: var(--kitchen-text); font-size: 16px; font-weight: 600; }
+#kc-form-login input:not([type="hidden"]) {
+  width: 100%; min-height: 58px; padding: 14px 16px; border: 1px solid var(--kitchen-border);
+  border-radius: 10px; background: #111923; color: var(--kitchen-text);
+  font: inherit; box-shadow: none;
+}
+#kc-form-login input[aria-invalid="true"] { border-color: #ff9b9b; }
+#kc-form-login input:focus { border-color: #8bb5ff; outline: 3px solid #397cf54d; outline-offset: 2px; }
+.kitchen-password { position: relative; }
+#kc-form-login .kitchen-password input { padding-right: 145px; }
+#kitchen-password-toggle {
+  position: absolute; right: 5px; top: 5px; bottom: 5px; max-width: 136px; padding: 0 12px;
+  border: 0; border-radius: 7px; background: transparent; color: #b7d0ff;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#kitchen-password-toggle:hover { background: #ffffff0b; }
+#kc-login {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 60px;
+  padding: 14px 20px; border: 1px solid #79a6ff; border-radius: 10px;
+  background: #2c67d5; color: #fff; font: inherit; font-size: 18px; font-weight: 650; cursor: pointer;
+  transition: background .15s;
+}
+#kc-login:hover { background: #2357bb; }
+#kc-login:active { background: #1b489f; }
+#kc-login:disabled { opacity: .7; cursor: wait; }
+.kitchen-arrow { font-size: 24px; line-height: 1; }
+button:focus-visible, a:focus-visible { outline: 3px solid #b7d0ff; outline-offset: 4px; }
+.kitchen-help {
+  display: flex; gap: 12px; margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--kitchen-border);
+  color: var(--kitchen-muted); font-size: 14px; line-height: 1.6;
+}
+.login-pf-page .card-pf .kitchen-help p { margin: 0; color: var(--kitchen-muted); }
+.kitchen-help strong { color: var(--kitchen-text); font-weight: 600; }
+.kitchen-help-icon {
+  flex: 0 0 20px; height: 20px; margin-top: 2px; border: 1px solid var(--kitchen-muted);
+  border-radius: 50%; text-align: center; font: 600 13px/18px system-ui;
+}
+.kitchen-error { display: block; margin-top: 10px; color: #ffb3b3; font-size: 14px; }
+.card-pf .alert { margin: 0 0 22px; }
+.card-pf .pf-c-alert { background: #282232; color: var(--kitchen-text); border-radius: 8px; }
+#kc-locale { position: absolute; top: -12px; right: 0; margin: 0; }
+#kc-locale-dropdown { text-align: right; }
+#kc-locale button { min-height: 44px; color: var(--kitchen-muted); font: inherit; font-size: 14px; }
+#kc-locale ul { background: var(--kitchen-surface); border: 1px solid var(--kitchen-border); border-radius: 8px; }
+#kc-locale ul a { color: var(--kitchen-text); min-height: 44px; padding: 10px 16px; }
+#kc-locale ul a:hover { background: #29364a; }
+#kc-form-login [hidden] { display: none; }
+@media (max-width: 540px) {
+  .login-pf-page { padding: 28px 16px; }
+  .login-pf-page .card-pf { padding: 28px 24px; }
+  #kc-header { padding: 0; }
+  #kc-page-title { font-size: 28px; }
+}
+@media (max-height: 720px) and (min-width: 541px) {
+  .login-pf-page { padding-top: 24px; padding-bottom: 24px; }
+  #kc-header { margin-bottom: 18px; }
+  .login-pf-page .card-pf { padding-top: 28px; padding-bottom: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { #kc-login { transition: none; } }
