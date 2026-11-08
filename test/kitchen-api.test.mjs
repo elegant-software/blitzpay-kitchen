@@ -24,3 +24,10 @@ test('a rejected refreshed session asks for a fresh login instead of looping 401
   await assert.rejects(api('/stations'), /Sign in again/);
   assert.equal(logins, 1);
 });
+
+test('a login for another branch (403) asks for a fresh login instead of retrying forever', async () => {
+  let logins = 0;
+  const api = createKitchenApi('http://backend', { mock: false, headers: async () => ({ Authorization: 'Bearer other-branch' }), login: async () => { logins++; } }, async () => new Response('', { status: 403 }));
+  await assert.rejects(api('/stations'), /not allowed for this branch/);
+  assert.equal(logins, 1);
+});
