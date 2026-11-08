@@ -30,6 +30,8 @@ export function createKitchenApi(base: string, session: KitchenSession, fetcher:
       await session.login();
       throw new Error("This kitchen login is not allowed for this branch. Sign in with this branch's kitchen login.");
     }
+    if (response.status === 404) throw new Error(`Kitchen API could not find ${path}. Check KITCHEN_BRANCH_ID, KITCHEN_STATION_ID and that the backend supports kitchen screens.`);
+    if (response.status >= 500) throw new Error(`Kitchen API returned HTTP ${response.status}. The backend could not complete the request. Check backend logs and try again.`);
     if (!response.ok) throw new Error(`${init.method ?? 'GET'} ${path}: ${response.status}`);
     return response;
   };

@@ -8,12 +8,22 @@
   <script type="module" src="../dist/renderer/app.js"></script>
 </head>
 <body>
-  <img id="logo" alt="" hidden>
+  <img id="logo" alt="" aria-hidden="true" draggable="false" hidden>
   <div id="offline" class="hidden"></div>
   <nav class="station-bar" aria-label="Preparation station">
     <strong id="station-name"></strong>
+    <div class="language-control">
+      <button id="language" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu">
+        <img id="language-flag" src="flags/gb.svg" alt="" width="24" height="18"><span id="language-code">EN</span>
+        <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+      <div id="language-menu" role="menu" hidden>
+        <button type="button" role="menuitemradio" data-language="en" aria-checked="true"><img src="flags/gb.svg" alt="" width="24" height="18"><span lang="en">English</span><span class="language-check" aria-hidden="true">&#10003;</span></button>
+        <button type="button" role="menuitemradio" data-language="de" aria-checked="false"><img src="flags/de.svg" alt="" width="24" height="18"><span lang="de">Deutsch</span><span class="language-check" aria-hidden="true">&#10003;</span></button>
+      </div>
+    </div>
   </nav>
-  <main id="grid"><p class="empty" role="status">Connecting to kitchen...</p></main>
+  <main id="grid"><p id="connecting" class="empty" role="status">Connecting to kitchen...</p></main>
   <div id="undo"></div>
 </body>
 </html>

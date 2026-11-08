@@ -3,6 +3,7 @@ export interface ConnectionConfig {
   branchId: string;
   keycloakUrl: string;
   keycloakRealm: string;
+  keycloakClientId: string;
   mockAuth: boolean;
 }
 
@@ -11,6 +12,11 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 export function validateConnectionConfig(config: ConnectionConfig): void {
   if (!config.branchId?.trim() || (!config.mockAuth && config.branchId === 'demo-branch')) {
     throw new Error('Kitchen connection is not configured. Set KITCHEN_BRANCH_ID to your real branch and configure KITCHEN_API_URL / KEYCLOAK_URL in .env.');
+  }
+  if (!config.mockAuth) {
+    for (const [name, value] of [['KEYCLOAK_REALM', config.keycloakRealm], ['KEYCLOAK_CLIENT_ID', config.keycloakClientId]]) {
+      if (!value?.trim()) throw new Error(`${name} is missing. Set it in .env and restart the kitchen screen.`);
+    }
   }
   for (const [name, value] of [['KITCHEN_API_URL', config.apiBaseUrl], ...(!config.mockAuth ? [['KEYCLOAK_URL', config.keycloakUrl]] : [])]) {
     try {

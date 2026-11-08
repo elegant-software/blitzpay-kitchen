@@ -30,18 +30,71 @@ const strings = {
   en: {
     PRE_ORDER: 'Pre-Order', WALK_IN_ORDERING: 'Walk-In', RECEIVED: 'Received', PREPARING: 'Preparing',
     toPreparing: 'Preparing', toReady: 'Station ready', cancelled: 'CANCELLED', tapToDismiss: 'Tap to dismiss',
-    new: 'NEW', undo: 'Undo', offline: 'Offline – reconnecting…', empty: 'No open orders',
+    new: 'NEW', undo: 'Undo', offline: 'Offline – reconnecting…', empty: 'You\u2019re all caught up', emptyHint: 'New orders for this station will appear here automatically.', connecting: 'Connecting to kitchen\u2026', language: 'Language', station: 'Preparation station',
   },
   de: {
     PRE_ORDER: 'Vorbestellung', WALK_IN_ORDERING: 'Vor Ort', RECEIVED: 'Eingegangen', PREPARING: 'In Zubereitung',
     toPreparing: 'Zubereiten', toReady: 'Station fertig', cancelled: 'STORNIERT', tapToDismiss: 'Tippen zum Schließen',
-    new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen',
+    new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen', emptyHint: 'Neue Bestellungen f\u00fcr diese Station erscheinen hier automatisch.', connecting: 'Verbindung zur K\u00fcche wird hergestellt\u2026', language: 'Sprache', station: 'Zubereitungsstation',
   },
 };
-const t = navigator.language.toLowerCase().startsWith('de') ? strings.de : strings.en;
-document.documentElement.lang = t === strings.de ? 'de' : 'en';
+const savedLanguage = localStorage.getItem('kitchen-language');
+let language: 'en' | 'de' = savedLanguage === 'en' || savedLanguage === 'de'
+  ? savedLanguage : navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en';
+let t = strings[language];
+function translateShell() {
+  document.documentElement.lang = language;
+  document.querySelector('#language')!.setAttribute('aria-label', `${t.language}: ${language === 'de' ? 'Deutsch' : 'English'}`);
+  document.querySelector('#language-menu')!.setAttribute('aria-label', t.language);
+  document.querySelector('#language-code')!.textContent = language.toUpperCase();
+  (document.querySelector('#language-flag') as HTMLImageElement).src = `flags/${language === 'de' ? 'de' : 'gb'}.svg`;
+  document.querySelectorAll<HTMLElement>('[data-language]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.language === language)));
+  document.querySelector('.station-bar')!.setAttribute('aria-label', t.station);
+  const connecting = document.querySelector('#connecting');
+  if (connecting) connecting.textContent = t.connecting;
+  document.querySelector('#offline')!.textContent = t.offline;
+}
+translateShell();
 
 const UNDO_MS = 10_000;
+const trigger = document.querySelector<HTMLButtonElement>('#language')!;
+const menu = document.querySelector<HTMLElement>('#language-menu')!;
+const choices = [...menu.querySelectorAll<HTMLButtonElement>('[data-language]')];
+function closeLanguages(restoreFocus = false) {
+  menu.hidden = true;
+  trigger.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) trigger.focus();
+}
+function openLanguages() {
+  menu.hidden = false;
+  trigger.setAttribute('aria-expanded', 'true');
+  choices.find(button => button.dataset.language === language)?.focus();
+}
+trigger.addEventListener('click', () => menu.hidden ? openLanguages() : closeLanguages());
+trigger.addEventListener('keydown', event => {
+  if (event.key === 'ArrowDown') { event.preventDefault(); openLanguages(); }
+});
+choices.forEach(button => button.addEventListener('click', () => {
+  language = button.dataset.language === 'de' ? 'de' : 'en';
+  t = strings[language];
+  localStorage.setItem('kitchen-language', language);
+  translateShell();
+  if (started) render();
+  closeLanguages(true);
+}));
+menu.addEventListener('keydown', event => {
+  const index = choices.indexOf(document.activeElement as HTMLButtonElement);
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    choices[event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length]?.focus();
+  } else if (event.key === 'Tab') closeLanguages();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !menu.hidden) { event.preventDefault(); closeLanguages(true); }
+});
+document.addEventListener('click', event => {
+  if (!(event.target as HTMLElement).closest('.language-control')) closeLanguages();
+});
 
 // Any error before the first render (config, Keycloak init) goes to the error page instead of a black screen.
 let started = false;
@@ -75,7 +128,7 @@ async function setupAuth(): Promise<KitchenSession> {
   } catch (err) {
     console.error('Keycloak init failed', err instanceof Error ? err.stack : JSON.stringify(err));
     // A fresh login that fails would only loop back to the login page: show why instead.
-    if (!saved) throw new Error(`Login failed: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+    if (!saved) throw new Error(`Login failed. Check KEYCLOAK_CLIENT_ID, the client redirect URI, and that the kitchen account is enabled. ${err instanceof Error ? err.message : JSON.stringify(err)}`);
     if (!kc.refreshToken) {
       await window.kitchen.saveToken(null);
       await kc.login({ redirectUri, scope: 'openid offline_access' });
@@ -113,11 +166,12 @@ const ticketPath = (path: string) => stationPath(stationId, path);
 
 // Logo is optional: missing, unset or failing → no watermark.
 api('/branding').then((r) => r.json()).then(({ logoUrl }: { logoUrl: string | null }) => {
-  if (!logoUrl) return;
+  if (!logoUrl) { console.warn('Kitchen branding: backend returned no merchant logo.'); return; }
   const img = document.getElementById('logo') as HTMLImageElement;
   img.onload = () => (img.hidden = false);
+  img.onerror = () => { img.hidden = true; console.warn('Kitchen branding: merchant logo image failed to load. Check storage availability and the signed download URL.'); };
   img.src = logoUrl;
-}).catch(() => {});
+}).catch((error) => console.warn('Kitchen branding request failed:', error instanceof Error ? error.message : String(error)));
 
 const postStatus = (orderId: string, status: 'PREPARING' | 'READY') =>
   api(ticketPath(`/orders/${encodeURIComponent(orderId)}/preparation-status`), {
@@ -240,7 +294,7 @@ function render() {
           ${action}
         </article>`;
       }).join('')
-    : `<p class="empty">${t.empty}</p>`;
+    : `<section class="empty-state" role="status"><svg width="72" height="72" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 42h44M14 42a18 18 0 0 1 36 0M32 20v4M28 18h8M14 50h36"/><path d="m25 34 5 5 9-10"/></svg><h1>${t.empty}</h1><p>${t.emptyHint}</p></section>`;
   $('#undo').innerHTML = [...pendingReady.keys()]
     .map((id) => cards.get(id))
     .filter((c) => c)
@@ -362,7 +416,7 @@ async function chooseStation() {
   const stations: Station[] = await (await api('/stations')).json();
   const chosen = resolveStation(stations, cfg.stationId || '');
   if (cfg.stationId && !chosen) throw new Error('Configured preparation station is not available in this branch. Check KITCHEN_STATION_ID.');
-  if (!chosen) throw new Error('This branch has no kitchen station.');
+  if (!chosen) throw new Error('No preparation station is configured for this branch. Add a station in the merchant dashboard and check KITCHEN_BRANCH_ID.');
   stationId = chosen.id;
   $('#station-name').textContent = chosen.name;
   document.title = `${chosen.name} - BlitzPay Kitchen`;

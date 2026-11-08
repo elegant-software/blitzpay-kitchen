@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateConnectionConfig, verifyKeycloak, fetchService } from '../dist/renderer/connections.js';
 
-const config = { apiBaseUrl: 'http://localhost:8080', branchId: 'real-branch', keycloakUrl: 'http://127.0.0.1:8084', keycloakRealm: 'blitzpay', mockAuth: false };
+const config = { apiBaseUrl: 'http://localhost:8080', branchId: 'real-branch', keycloakUrl: 'http://127.0.0.1:8084', keycloakRealm: 'blitzpay', keycloakClientId: 'blitzpay-kitchen', mockAuth: false };
 
 test('real screens reject the untouched demo defaults before navigating to login', () => {
   assert.throws(() => validateConnectionConfig({ ...config, branchId: 'demo-branch' }), /KITCHEN_BRANCH_ID/);
@@ -22,4 +22,10 @@ test('mock mode never contacts Keycloak and real mode verifies realm discovery',
   let requested = '';
   await verifyKeycloak(config, async url => { requested = String(url); return Response.json({ issuer: 'http://127.0.0.1:8084/realms/blitzpay' }); });
   assert.equal(requested, 'http://127.0.0.1:8084/realms/blitzpay/.well-known/openid-configuration');
+});
+
+test('missing required settings identify the environment variable', () => {
+  for (const [field, variable] of [['apiBaseUrl', 'KITCHEN_API_URL'], ['branchId', 'KITCHEN_BRANCH_ID'], ['keycloakUrl', 'KEYCLOAK_URL'], ['keycloakRealm', 'KEYCLOAK_REALM'], ['keycloakClientId', 'KEYCLOAK_CLIENT_ID']]) {
+    assert.throws(() => validateConnectionConfig({ ...config, [field]: '' }), new RegExp(variable));
+  }
 });
