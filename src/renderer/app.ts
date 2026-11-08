@@ -111,11 +111,11 @@ const stationStorageKey = `station:${cfg.apiBaseUrl}:${cfg.branchId}`;
 let stationId = cfg.stationId || localStorage.getItem(stationStorageKey) || '';
 const ticketPath = (path: string) => stationPath(stationId, path);
 
-// Logo is optional: missing, unset or failing → header stays hidden.
+// Logo is optional: missing, unset or failing → no watermark.
 api('/branding').then((r) => r.json()).then(({ logoUrl }: { logoUrl: string | null }) => {
   if (!logoUrl) return;
   const img = document.getElementById('logo') as HTMLImageElement;
-  img.onload = () => (img.parentElement!.hidden = false);
+  img.onload = () => (img.hidden = false);
   img.src = logoUrl;
 }).catch(() => {});
 
