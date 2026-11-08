@@ -24,6 +24,12 @@ export function createKitchenApi(base: string, session: KitchenSession, fetcher:
         throw new Error('The kitchen session was rejected. Sign in again with the branch kitchen login.');
       }
     }
+    // Valid login, wrong branch (e.g. KITCHEN_BRANCH_ID changed but the saved login is another branch's):
+    // retrying never helps, so drop the saved login and ask for this branch's one.
+    if (response.status === 403 && !session.mock) {
+      await session.login();
+      throw new Error("This kitchen login is not allowed for this branch. Sign in with this branch's kitchen login.");
+    }
     if (!response.ok) throw new Error(`${init.method ?? 'GET'} ${path}: ${response.status}`);
     return response;
   };

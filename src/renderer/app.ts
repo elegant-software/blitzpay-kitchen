@@ -85,7 +85,8 @@ async function setupAuth(): Promise<KitchenSession> {
   const login = async () => {
     await window.kitchen.saveToken(null);
     kc.clearToken();
-    await kc.login({ redirectUri, scope: 'openid offline_access' });
+    // prompt=login: Keycloak's own session cookie would otherwise sign the same rejected user straight back in.
+    await kc.login({ redirectUri, scope: 'openid offline_access', prompt: 'login' });
   };
   return {
     mock: false,
