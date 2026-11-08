@@ -101,6 +101,9 @@ http.createServer((req, res) => {
     // Like the real endpoint should: today's open orders plus cancelled ones (the screen tracks dismissal).
     return json(res, 200, [...orders.values()].filter((o) => o.preparationStatus !== 'READY'));
   }
+  if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/branding$/.test(path)) {
+    return json(res, 200, { logoUrl: process.env.MOCK_LOGO_URL ?? null });
+  }
   if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/stream$/.test(path)) {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     res.write(': connected\n\n');

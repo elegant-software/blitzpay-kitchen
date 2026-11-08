@@ -80,6 +80,14 @@ async function api(path: string, init: RequestInit = {}) {
   return res;
 }
 
+// Logo is optional: missing, unset or failing → header stays hidden.
+api('/branding').then((r) => r.json()).then(({ logoUrl }: { logoUrl: string | null }) => {
+  if (!logoUrl) return;
+  const img = document.getElementById('logo') as HTMLImageElement;
+  img.onload = () => (img.parentElement!.hidden = false);
+  img.src = logoUrl;
+}).catch(() => {});
+
 const postStatus = (orderId: string, status: 'PREPARING' | 'READY') =>
   api(`/orders/${encodeURIComponent(orderId)}/preparation-status`, {
     method: 'POST',
