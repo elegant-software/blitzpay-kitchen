@@ -107,8 +107,7 @@ async function setupAuth(): Promise<KitchenSession> {
 
 const api = createKitchenApi(base, await setupAuth());
 
-const stationStorageKey = `station:${cfg.apiBaseUrl}:${cfg.branchId}`;
-let stationId = cfg.stationId || localStorage.getItem(stationStorageKey) || '';
+let stationId = cfg.stationId || '';
 const ticketPath = (path: string) => stationPath(stationId, path);
 
 // Logo is optional: missing, unset or failing → no watermark.
@@ -360,30 +359,11 @@ setInterval(() => {
 
 async function chooseStation() {
   const stations: Station[] = await (await api('/stations')).json();
-  const select = document.querySelector<HTMLSelectElement>('#station')!;
-  const chosen = resolveStation(stations, stationId);
+  const chosen = resolveStation(stations, cfg.stationId || '');
   if (cfg.stationId && !chosen) throw new Error('Configured preparation station is not available in this branch. Check KITCHEN_STATION_ID.');
-  select.innerHTML = `<option value="">${t === strings.de ? 'Station ausw\u00e4hlen' : 'Select a station'}</option>` +
-    stations.map(station => `<option value="${esc(station.id)}">${esc(station.name)}</option>`).join('');
-  stationId = chosen?.id ?? '';
-  select.value = stationId;
-  select.disabled = !!cfg.stationId && !!chosen;
-  $('#station-label').textContent = t === strings.de ? 'Vorbereitungsstation' : 'Preparation station';
-  select.addEventListener('change', () => {
-    if (!select.value) return;
-    if (pendingReady.size && !confirm(t === strings.de ? 'Station wechseln und ausstehende Fertigmeldungen verwerfen?' : 'Switch station and cancel pending ready actions?')) {
-      select.value = stationId;
-      return;
-    }
-    localStorage.setItem(stationStorageKey, select.value);
-    location.reload();
-  });
-  if (!chosen) {
-    $('#grid').innerHTML = `<p class="empty">${t === strings.de ? 'Bitte w\u00e4hlen Sie eine Station.' : 'Select a preparation station to view its tickets.'}</p>`;
-    started = true;
-    return;
-  }
-  localStorage.setItem(stationStorageKey, stationId);
+  if (!chosen) throw new Error('This branch has no kitchen station.');
+  stationId = chosen.id;
+  $('#station-name').textContent = chosen.name;
   document.title = `${chosen.name} - BlitzPay Kitchen`;
   render();
   started = true;

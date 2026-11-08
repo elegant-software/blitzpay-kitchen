@@ -5,7 +5,11 @@ export function stationPath(stationId: string, path: string): string {
   return `/stations/${encodeURIComponent(stationId)}${path}`;
 }
 
-export function resolveStation(stations: Station[], selected: string): Station | null {
-  if (selected) return stations.find(station => station.id === selected) ?? null;
-  return stations.length === 1 ? stations[0] : null;
+/**
+ * A screen shows its pinned station (KITCHEN_STATION_ID) or else the branch's default station: the
+ * first one, which also receives items without a category or product assignment. No picker.
+ */
+export function resolveStation(stations: Station[], pinned: string): Station | null {
+  if (pinned) return stations.find(station => station.id === pinned) ?? null;
+  return stations[0] ?? null;
 }
