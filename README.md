@@ -106,13 +106,13 @@ Configure the branch stations and category defaults/product overrides in the adm
 Newly submitted items retain that routing even if the catalog is changed later. Existing orders
 and unmapped products stay in the visible **Unassigned / General kitchen** queue.
 
-The screen lists stations authorized for its existing branch login. Select **Food Kitchen** on
-one screen and **Drinks Bar** on the other. The selection is remembered per API/branch/profile.
-Each screen receives only its station items; both keep the customer order number and table.
-The Ready action completes only the selected station. Customer readiness waits for all stations.
+There is no station picker. A screen shows the station pinned with `KITCHEN_STATION_ID`
+(`stationId` in config.json), otherwise the branch's default station: the first configured one,
+which also receives items without a category or product assignment. Each screen receives only its station items; both keep the customer order number and table.
+The Ready action completes only the screen's station. Customer readiness waits for all stations.
 No additional Keycloak client or station user is required.
 
-On two separate devices, run `npm.cmd start` on each and choose its station.
+On two separate devices, run `npm.cmd start` on each; pin the non-default one (e.g. Drinks Bar).
 For two windows on the same Windows computer, use two PowerShell terminals in this repo,
 with the same backend/branch/Keycloak settings (from your existing `.env` or environment).
 
@@ -129,17 +129,17 @@ Second terminal:
 
 ```powershell
 $env:KITCHEN_PROFILE = 'drinks'
+$env:KITCHEN_STATION_ID = '<drinks-station-uuid>'
 $env:MOCK_AUTH = '0'
 $env:KIOSK = '0'
 npm.cmd start
 ```
 
-Select the station in each window and move it to its monitor. Profiles isolate the single-instance
-lock, tokens, station choice and cancellation dismissals. They inherit common server configuration;
+Move each window to its monitor. Profiles isolate the single-instance lock, tokens and
+cancellation dismissals. They inherit common server configuration;
 optional profile-specific config lives under `<userData>/profiles/<profile>/config.json`.
 `KITCHEN_PROFILE` accepts letters, digits, underscores and hyphens only.
 
-Optionally pin a screen with `KITCHEN_STATION_ID=<station-uuid>` (`stationId` in config.json).
 The backend validates the station against the authenticated branch. A bad pinned station is shown
 as a startup error, never replaced with another branch or a branch-wide queue.
 

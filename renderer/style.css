@@ -56,9 +56,6 @@ li s { color: #ccc; font-weight: 400; }
 .hidden { display: none; }
 
 .station-bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 16px; background: #1b1b1b; border-bottom: 1px solid #444; }
-.station-bar label { display: block; font-size: 16px; color: #bbb; margin-bottom: 6px; }
-.station-bar select { min-height: 48px; max-width: 100%; padding: 8px 36px 8px 12px; border: 1px solid #666; border-radius: 8px; background: #292929; color: #fff; font: inherit; }
-#station-current { font-size: 20px; }
-#station-change { margin-left: 12px; min-height: 40px; padding: 4px 14px; border: 1px solid #666; border-radius: 8px; background: transparent; color: #bbb; font: inherit; font-size: 16px; }
+#station-name { font-size: 20px; }
 .station-bar p { margin: 0; max-width: 580px; font-size: 16px; color: #e5c76b; }
 .table-name { background: #444; border-radius: 8px; padding: 4px 12px; font-weight: 700; }
