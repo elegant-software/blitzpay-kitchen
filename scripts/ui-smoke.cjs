@@ -50,6 +50,7 @@ app.whenReady().then(async () => {
     assert.ok(food.text.includes('Burger') && !food.text.includes('Cola'));
     assert.ok(drinks.text.includes('Cola') && !drinks.text.includes('Burger'));
     assert.ok(food.text.includes('Table 7') && drinks.text.includes('Table 7'));
+    assert.ok(food.text.includes('TAKE-AWAY') && drinks.text.includes('TAKE-AWAY'));
     const stationId = stations.find(s => s.name === 'Drinks Bar').id;
     for (const status of ['PREPARING', 'READY']) {
       const response = await fetch(`${kitchen}/stations/${stationId}/orders/${drinks.id}/preparation-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });

@@ -27,6 +27,7 @@ test('two displays retain #42 and Table 7 while completion and reconnect stay in
     const drinksTicket = (await request(stationPath(drinks, '/orders'))).find(o => o.pickupNumber === 42);
     assert.equal(foodTicket.orderId, drinksTicket.orderId);
     assert.equal(drinksTicket.tableName, 'Table 7');
+    assert.equal(drinksTicket.fulfilmentType, 'TAKE_AWAY');
     assert.deepEqual(foodTicket.items.map(i => [i.name, i.quantity]), [['Burger', 2]]);
     assert.deepEqual(drinksTicket.items.map(i => [i.name, i.quantity]), [['Cola', 2]]);
     const completion = stationPath(drinks, `/orders/${drinksTicket.orderId}/preparation-status`);

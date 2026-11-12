@@ -28,12 +28,12 @@ declare global {
 
 const strings = {
   en: {
-    PRE_ORDER: 'Pre-Order', WALK_IN_ORDERING: 'Walk-In', RECEIVED: 'Received', PREPARING: 'Preparing',
+    DINE_IN: 'DINE IN', TAKE_AWAY: 'TAKE-AWAY', PRE_ORDER: 'Pre-Order', WALK_IN_ORDERING: 'Walk-In', RECEIVED: 'Received', PREPARING: 'Preparing',
     toPreparing: 'Preparing', toReady: 'Station ready', cancelled: 'CANCELLED', tapToDismiss: 'Tap to dismiss',
     new: 'NEW', undo: 'Undo', offline: 'Offline – reconnecting…', empty: 'No open orders',
   },
   de: {
-    PRE_ORDER: 'Vorbestellung', WALK_IN_ORDERING: 'Vor Ort', RECEIVED: 'Eingegangen', PREPARING: 'In Zubereitung',
+    DINE_IN: 'VOR ORT ESSEN', TAKE_AWAY: 'ZUM MITNEHMEN', PRE_ORDER: 'Vorbestellung', WALK_IN_ORDERING: 'Vor Ort', RECEIVED: 'Eingegangen', PREPARING: 'In Zubereitung',
     toPreparing: 'Zubereiten', toReady: 'Station fertig', cancelled: 'STORNIERT', tapToDismiss: 'Tippen zum Schließen',
     new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen',
   },
@@ -228,6 +228,7 @@ function render() {
         return `<article class="card ${o.preparationStatus.toLowerCase()}${o.cancelled ? ' cancelled' : ''}${highlight}${flash}" data-id="${esc(o.orderId)}">
           <header>
             <span class="pickup">${pickup(o)}</span>
+            ${o.fulfilmentType ? `<span class="fulfilment ${o.fulfilmentType.toLowerCase()}">${t[o.fulfilmentType]}</span>` : ''}
             <span class="timer" data-received="${esc(o.receivedAt)}"></span>
           </header>
           <div class="meta">

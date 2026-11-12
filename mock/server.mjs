@@ -32,6 +32,7 @@ function newOrder(minutesAgo = 0) {
     pickupNumber: ++pickup,
     orderType: Math.random() < 0.5 ? 'PRE_ORDER' : 'WALK_IN_ORDERING',
     shopperFirstName: pick(NAMES),
+    fulfilmentType: Math.random() < 0.5 ? 'DINE_IN' : 'TAKE_AWAY',
     receivedAt: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
     preparationStatus: 'RECEIVED',
     cancelled: false,
@@ -96,6 +97,7 @@ const triggers = {
 // Seed: a few open orders (one already overdue) and one from yesterday the screen must hide.
 const mixed = newOrder(22);
 mixed.tableName = 'Table 7';
+mixed.fulfilmentType = 'TAKE_AWAY'; // a take-away order can still have a table
 mixed.items = [
   { itemId: randomUUID(), name: 'Burger', quantity: 2, locked: false, stationId: FOOD, stationName: 'Food Kitchen', preparationStatus: 'RECEIVED' },
   { itemId: randomUUID(), name: 'Cola', quantity: 2, locked: false, stationId: DRINKS, stationName: 'Drinks Bar', preparationStatus: 'RECEIVED' },
