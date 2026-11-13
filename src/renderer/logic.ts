@@ -9,6 +9,8 @@ export interface Item {
   locked: boolean;
 }
 
+export type FulfilmentType = 'DINE_IN' | 'TAKE_AWAY';
+
 export interface KitchenOrder {
   orderId: string;
   orderCode: string;
@@ -17,6 +19,8 @@ export interface KitchenOrder {
   shopperFirstName?: string;
   tableId?: string;
   tableName?: string;
+  /** null for invoice/appointment orders; independent of the table. */
+  fulfilmentType?: FulfilmentType | null;
   receivedAt: string;
   preparationStatus: PreparationStatus;
   cancelled: boolean;

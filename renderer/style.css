@@ -58,4 +58,7 @@ li s { color: #ccc; font-weight: 400; }
 .station-bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 16px; background: #1b1b1b; border-bottom: 1px solid #444; }
 #station-name { font-size: 20px; }
 .station-bar p { margin: 0; max-width: 580px; font-size: 16px; color: #e5c76b; }
+.fulfilment { padding: 6px 16px; border-radius: 8px; font-weight: 900; font-size: 22px; letter-spacing: 1px; text-transform: uppercase; border: 3px solid #fff; }
+.fulfilment.take_away { background: #ff7a00; color: #000; }
+.fulfilment.dine_in { background: #0b5cad; color: #fff; }
 .table-name { background: #444; border-radius: 8px; padding: 4px 12px; font-weight: 700; }
