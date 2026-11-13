@@ -59,18 +59,30 @@ function log(line: string) {
 const tokenFile = () => path.join(app.getPath('userData'), 'token.bin');
 
 ipcMain.handle('config', () => loadConfig());
-ipcMain.handle('token:load', () => {
+// Serialize storage operations so a slow encryption cannot overwrite a later logout.
+let tokenQueue: Promise<unknown> = Promise.resolve();
+function tokenOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = tokenQueue.then(operation);
+  tokenQueue = result.catch(() => {});
+  return result;
+}
+ipcMain.handle('token:load', () => tokenOperation(async () => {
   try {
-    return JSON.parse(safeStorage.decryptString(fs.readFileSync(tokenFile())));
+    const decrypted = await safeStorage.decryptStringAsync(await fs.promises.readFile(tokenFile()));
+    const tokens: unknown = JSON.parse(decrypted.result);
+    if (decrypted.shouldReEncrypt) {
+      await fs.promises.writeFile(tokenFile(), await safeStorage.encryptStringAsync(decrypted.result));
+    }
+    return tokens;
   } catch {
     return null;
   }
-});
-ipcMain.handle('token:save', (_e, tokens: unknown) => {
-  if (!tokens) return fs.rmSync(tokenFile(), { force: true });
-  if (!safeStorage.isEncryptionAvailable()) return console.warn('safeStorage unavailable; token not persisted');
-  fs.writeFileSync(tokenFile(), safeStorage.encryptString(JSON.stringify(tokens)));
-});
+}));
+ipcMain.handle('token:save', (_e, tokens: unknown) => tokenOperation(async () => {
+  if (!tokens) return fs.promises.rm(tokenFile(), { force: true });
+  if (!await safeStorage.isAsyncEncryptionAvailable()) return console.warn('safeStorage unavailable; token not persisted');
+  await fs.promises.writeFile(tokenFile(), await safeStorage.encryptStringAsync(JSON.stringify(tokens)));
+}));
 
 // The renderer is served from app://kitchen/ so Keycloak has a stable redirect URI and crypto.subtle (PKCE) works.
 protocol.registerSchemesAsPrivileged([

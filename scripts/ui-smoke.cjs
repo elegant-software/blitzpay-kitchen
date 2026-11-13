@@ -44,6 +44,19 @@ app.whenReady().then(async () => {
       await win.loadURL('app://kitchen/renderer/index.html');
       await waitFor(() => win.webContents.executeJavaScript(`document.querySelector('#grid .card') !== null`));
     }
+    const screen = windows[0];
+    const selectLanguage = value => screen.webContents.executeJavaScript(`document.querySelector('#language').click(); document.querySelector('[data-language="${value}"]').click();`);
+    await selectLanguage('de');
+    assert.equal(await screen.webContents.executeJavaScript(`document.documentElement.lang`), 'de');
+    assert.equal(await screen.webContents.executeJavaScript(`document.querySelector('#language').getAttribute('aria-label')`), 'Sprache: Deutsch');
+    assert.ok(await screen.webContents.executeJavaScript(`document.querySelector('#grid').textContent.includes('Zubereiten')`));
+    // Await the real reload: polling right after reload() could still see the old document.
+    await screen.loadURL(screen.webContents.getURL());
+    await waitFor(() => screen.webContents.executeJavaScript(`document.querySelector('#grid .card') !== null`));
+    assert.equal(await screen.webContents.executeJavaScript(`document.documentElement.lang`), 'de');
+    await selectLanguage('en');
+    assert.ok(await screen.webContents.executeJavaScript(`document.querySelector('#grid').textContent.includes('Preparing')`));
+    assert.equal(await screen.webContents.executeJavaScript(`getComputedStyle(document.querySelector('#logo')).opacity`), '0.12');
     const cards = async win => win.webContents.executeJavaScript(`Array.from(document.querySelectorAll('#grid .card')).map(card => ({ id: card.dataset.id, pickup: card.querySelector('.pickup').textContent, text: card.textContent }))`);
     const food = (await cards(windows[0])).find(card => card.pickup === '#042');
     const drinks = (await cards(windows[1])).find(card => card.pickup === '#042');
