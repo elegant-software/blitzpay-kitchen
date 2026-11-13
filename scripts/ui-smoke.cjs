@@ -50,7 +50,8 @@ app.whenReady().then(async () => {
     assert.equal(await screen.webContents.executeJavaScript(`document.documentElement.lang`), 'de');
     assert.equal(await screen.webContents.executeJavaScript(`document.querySelector('#language').getAttribute('aria-label')`), 'Sprache: Deutsch');
     assert.ok(await screen.webContents.executeJavaScript(`document.querySelector('#grid').textContent.includes('Zubereiten')`));
-    screen.reload();
+    // Await the real reload: polling right after reload() could still see the old document.
+    await screen.loadURL(screen.webContents.getURL());
     await waitFor(() => screen.webContents.executeJavaScript(`document.querySelector('#grid .card') !== null`));
     assert.equal(await screen.webContents.executeJavaScript(`document.documentElement.lang`), 'de');
     await selectLanguage('en');

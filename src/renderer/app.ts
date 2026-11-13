@@ -35,7 +35,7 @@ const strings = {
   de: {
     PRE_ORDER: 'Vorbestellung', WALK_IN_ORDERING: 'Vor Ort', RECEIVED: 'Eingegangen', PREPARING: 'In Zubereitung',
     toPreparing: 'Zubereiten', toReady: 'Station fertig', cancelled: 'STORNIERT', tapToDismiss: 'Tippen zum Schließen',
-    new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen', emptyHint: 'Neue Bestellungen f\u00fcr diese Station erscheinen hier automatisch.', connecting: 'Verbindung zur K\u00fcche wird hergestellt\u2026', language: 'Sprache', station: 'Zubereitungsstation',
+    new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Alles erledigt', emptyHint: 'Neue Bestellungen f\u00fcr diese Station erscheinen hier automatisch.', connecting: 'Verbindung zur K\u00fcche wird hergestellt\u2026', language: 'Sprache', station: 'Zubereitungsstation',
   },
 };
 const savedLanguage = localStorage.getItem('kitchen-language');
