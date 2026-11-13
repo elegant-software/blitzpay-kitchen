@@ -19,6 +19,7 @@ declare global {
   interface Window {
     kitchen: {
       config(): Promise<Config>;
+      versions(apiBaseUrl: string): Promise<{ app: string; api: string }>;
       loadToken(): Promise<{ token: string; refreshToken: string } | null>;
       saveToken(t: { token?: string; refreshToken?: string } | null): Promise<void>;
       fatal(message: string): void;
@@ -370,5 +371,15 @@ async function chooseStation() {
   started = true;
   connectLoop();
 }
+
+// Deployed versions in a faint corner; re-checked so a backend redeploy shows up on long-running kiosks.
+const showVersions = async () => {
+  try {
+    const v = await window.kitchen.versions(cfg.apiBaseUrl);
+    $('#version').textContent = `Kitchen ${v.app} · API ${v.api}`;
+  } catch {} // never let the version label break the order screen
+};
+void showVersions();
+setInterval(showVersions, 10 * 60_000);
 
 await chooseStation();
