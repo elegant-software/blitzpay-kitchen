@@ -72,6 +72,10 @@ web origin `app://kitchen`, `offline_access` scope allowed. The backend must all
 
 The stream reconnects if nothing (not even a `:` heartbeat comment) arrives for 60 s.
 
+- `GET  /actuator/info` – public, no auth; its `build.version` is shown as `API v…` in the bottom-left corner (`unknown` if unreachable; re-checked every 10 min)
+
+The corner also shows the screen's own version: the release tag in packaged builds (`cd-release.yml` stamps `package.json` from the tag, Electron reports it via `app.getVersion()`), `dev` when run with `npm start`.
+
 ## Build, test, package
 
 ```sh

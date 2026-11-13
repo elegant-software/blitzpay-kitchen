@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { errorPage } from './renderer/error-page.js';
+import { appVersion, backendVersion } from './version.js';
 
 const root = path.join(import.meta.dirname, '..');
 // Optional .env next to package.json (KEY=value lines). Real environment variables still win.
@@ -59,6 +60,11 @@ function log(line: string) {
 const tokenFile = () => path.join(app.getPath('userData'), 'token.bin');
 
 ipcMain.handle('config', () => loadConfig());
+// Fetched here, not in the renderer, so the backend's CORS rules for /actuator don't matter.
+ipcMain.handle('versions', async (_e, apiBaseUrl: string) => ({
+  app: appVersion(app.isPackaged, app.getVersion()),
+  api: await backendVersion(String(apiBaseUrl), (url, init) => net.fetch(url, init)),
+}));
 ipcMain.handle('token:load', () => {
   try {
     return JSON.parse(safeStorage.decryptString(fs.readFileSync(tokenFile())));
