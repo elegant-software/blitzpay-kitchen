@@ -170,3 +170,7 @@ startup is pending. If the backend was updated, restart it to apply station-tick
 before restarting the screens.
 
 A real API 401 triggers one forced token refresh. If it still rejects the session, the screen clears its saved session and starts login again. Mock-mode 401s explicitly identify `MOCK_AUTH=0` as the required real-server setting. Startup logs include the profile and authentication mode, never tokens.
+
+## Kitchen login page
+
+The kitchen-specific Keycloak theme lives in [keycloak/](keycloak/README.md). Install it on the Keycloak server and select it only for the kitchen client. It removes registration, Google sign-in and password recovery from the kitchen login page while preserving the existing Electron authentication flow.
