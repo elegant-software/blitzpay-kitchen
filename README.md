@@ -50,7 +50,7 @@ If the screen cannot start (server unreachable, login failing) it shows the reas
 | `apiBaseUrl` | `KITCHEN_API_URL` | `http://localhost:8787` |
 | `branchId` | `KITCHEN_BRANCH_ID` | `demo-branch` |
 | `keycloakUrl` | `KEYCLOAK_URL` | `http://localhost:8080` |
-| `keycloakRealm` | `KEYCLOAK_REALM` | `blitzpay` |
+| `keycloakRealm` | `KEYCLOAK_REALM` | `blitzpay-business` |
 | `keycloakClientId` | `KEYCLOAK_CLIENT_ID` | `blitzpay-kitchen` |
 | `overdueMinutes` | `OVERDUE_MINUTES` | `15` (timer turns red) |
 | `mockAuth` | `MOCK_AUTH=1` | off |
