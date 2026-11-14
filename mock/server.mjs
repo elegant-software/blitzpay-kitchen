@@ -136,7 +136,7 @@ http.createServer((req, res) => {
     return json(res, 200, [...orders.values()].map(o => ticket(o, stationId)).filter(o => o.items.length && (o.cancelled || o.preparationStatus !== 'READY')));
   }
   if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/branding$/.test(path)) {
-    return json(res, 200, { logoUrl: process.env.MOCK_LOGO_URL ?? null });
+    return json(res, 200, { logoUrl: process.env.MOCK_LOGO_URL ?? null, language: process.env.MOCK_LANGUAGE ?? null });
   }
   if (req.method === 'GET' && /^\/v1\/merchant\/branches\/[^/]+\/kitchen\/stream$/.test(path)) {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
