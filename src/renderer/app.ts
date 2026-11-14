@@ -38,8 +38,14 @@ const strings = {
     new: 'NEU', undo: 'Rückgängig', offline: 'Offline – verbinde neu…', empty: 'Keine offenen Bestellungen',
   },
 };
-const t = navigator.language.toLowerCase().startsWith('de') ? strings.de : strings.en;
-document.documentElement.lang = t === strings.de ? 'de' : 'en';
+// The Merchant's Original Menu Language (from /branding) wins; the OS language until it arrives. Only en and de exist.
+let t = strings.en;
+function useLanguage(language: string) {
+  const lang = language.toLowerCase().startsWith('de') ? 'de' : 'en';
+  t = strings[lang];
+  document.documentElement.lang = lang;
+}
+useLanguage(navigator.language);
 
 const UNDO_MS = 10_000;
 
@@ -111,8 +117,9 @@ const api = createKitchenApi(base, await setupAuth());
 let stationId = cfg.stationId || '';
 const ticketPath = (path: string) => stationPath(stationId, path);
 
-// Logo is optional: missing, unset or failing → no watermark.
-api('/branding').then((r) => r.json()).then(({ logoUrl }: { logoUrl: string | null }) => {
+// Logo is optional: missing, unset or failing → no watermark. Language unset or failing → the OS language stays.
+api('/branding').then((r) => r.json()).then(({ logoUrl, language }: { logoUrl: string | null; language?: string | null }) => {
+  if (language) { useLanguage(language); render(); }
   if (!logoUrl) return;
   const img = document.getElementById('logo') as HTMLImageElement;
   img.onload = () => (img.hidden = false);
